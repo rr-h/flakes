@@ -1,82 +1,92 @@
-{ inputs, pkgs, lib, ... }:
+{ config, pkgs, ... }:
 
 {
-    imports = [ ./boot.nix ./environment.nix ./networking.nix ./pkgs.nix
-     ./services.nix ./user.nix ];
-
-    # Set your time zone.
-  time.hardwareClockInLocalTime = true;
-  time.timeZone = "Asia/Ho_Chi_Minh";
-
-  # Select internationalisation properties.
-  services.xserver.xkb = {
-    layout = "us";
-    variant = "colemak_dh"; # Keyboard layout here. Comment this line to use the default layout
-    options = "grp:alt_shift_toggle";
-  };
-  
-  i18n.supportedLocales = [
-    "en_US.UTF-8/UTF-8"
+  imports = [
+    ./boot.nix
+    ./environment.nix
+    ./networking.nix
+    ./pkgs.nix
+    ./services.nix
+    ./user.nix
   ];
-  i18n.defaultLocale = "en_US.UTF-8";
-  i18n.extraLocaleSettings = {
-    LC_ADDRESS = "en_US.UTF-8";
-    LC_IDENTIFICATION = "en_US.UTF-8";
-    LC_MEASUREMENT = "en_US.UTF-8";
-    LC_MONETARY = "en_US.UTF-8";
-    LC_NAME = "en_US.UTF-8";
-    LC_NUMERIC = "en_US.UTF-8";
-    LC_PAPER = "en_US.UTF-8";
-    LC_TELEPHONE = "en_US.UTF-8";
-    LC_TIME = "en_US.UTF-8";
+
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+
+  networking = {
+    hostName = "nixos"; 
+    wireless.enable = true;
+    networkmanager.enable = true;
   };
- 
-  # xdg.portal = {
-  #   enable = true;
-  #   wlr.enable = true;
-  # };
 
-  ### Enable container manager
-
-  # Enable Containerd
-  # virtualisation.containerd.enable = true;
-
-  # Enable Docker
-  # virtualisation.docker.enable = true;
-  # virtualisation.docker.rootless = {
-  #   enable = true;
-  #   setSocketVariable = true;
-  # };
-  # users.extraGroups.docker.members = [ "xnm" ];
-
-  # Enable Podman
-  virtualisation = {
-    podman = {
-      enable = true;
-
-      # Create a `docker` alias for podman, to use it as a drop-in replacement
-      dockerCompat = true;
-
-      # Required for containers under podman-compose to be able to talk to each other.
-      defaultNetwork.settings.dns_enabled = true;
+  time.timeZone = "Europe/London";
+  i18n = {
+    defaultLocale = "en_GB.UTF-8";
+    extraLocaleSettings = {
+      LC_ADDRESS = "en_GB.UTF-8";
+      LC_IDENTIFICATION = "en_GB.UTF-8";
+      LC_MEASUREMENT = "en_GB.UTF-8";
+      LC_MONETARY = "en_GB.UTF-8";
+      LC_NAME = "en_GB.UTF-8";
+      LC_NUMERIC = "en_GB.UTF-8";
+      LC_PAPER = "en_GB.UTF-8";
+      LC_TELEPHONE = "en_GB.UTF-8";
+      LC_TIME = "en_GB.UTF-8";
     };
   };
- 
-  # Enable sound with pipewire.
+
+  services.xserver.enable = true;
+  services.xserver.layout = "gb";
+  services.xserver.xkbVariant = "mac";
+  services.xserver.displayManager.sddm.enable = true;
+  services.xserver.desktopManager.plasma5.enable = true;
+
+  networking.networkmanager.enable = true;
+
+  environment.systemPackages = with pkgs; [
+    kdeApplications.konsole
+    kdeApplications.dolphin
+  ];
+
   sound.enable = true;
   hardware.pulseaudio.enable = false;
-  security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
     alsa.enable = true;
-    alsa.support32Bit = true;
     pulse.enable = true;
-    wireplumber.enable = true;
-    # If you want to use JACK applications, uncomment this
-    # jack.enable = true;
-
-    # use the example session manager (no others are packaged yet so this is enabled by default,
-    # no need to redefine it in your config for now)
-    # media-session.enable = true;
   };
+
+  users.users.rr-h = {
+    isNormalUser = true;
+    description = "Ricardo";
+    extraGroups = [ "networkmanager", "wheel" ];
+    packages = with pkgs; [ vim wget ];
+  };
+
+  nixpkgs.config.allowUnfree = true;
+
+  environment.systemPackages = with pkgs; [ vim wget ];
+
+  security.sudo.enable = true;
+  security.sudo.extraRules = [
+    {
+      groups = [ "wheel" ];
+      commands = [
+        { command = "${pkgs.systemd}/bin/systemctl suspend"; options = [ "NOPASSWD" ]; }
+        { command = "${pkgs.systemd}/bin/reboot"; options = [ "NOPASSWD" ]; }
+        { command = "${pkgs.systemd}/bin/poweroff"; options = [ "NOPASSWD" ]; }
+        { command = "/run/current-system/sw/bin/nixos-rebuild"; options = [ "NOPASSWD" ]; }
+        { command = "${pkgs.neovim}/bin/nvim"; options = [ "NOPASSWD" ]; }
+        { command = "${pkgs.systemd}/bin/systemctl"; options = [ "NOPASSWD" ]; }
+        { command = "/run/current-system/sw/bin/ln"; options = [ "NOPASSWD" ]; }
+        { command = "/run/current-system/sw/bin/nix-channel"; options = [ "NOPASSWD" ]; }
+      ];
+    }
+  ];
+
+  services.openssh.enable = true;
+
+  system.stateVersion = "23.05"; 
+
+  # Additional configurations can be added here based on your requirements.
 }
